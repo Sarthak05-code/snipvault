@@ -20,34 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_task_id'])) {
     exit();
 }
 
-// Filter by status and keyword search
-$status_filter    = trim($_GET['status'] ?? '');
-$search           = trim($_GET['search'] ?? '');   // keyword from search box
+// Filter by status
+$status_filter = trim($_GET['status'] ?? '');
 $allowed_statuses = ['open', 'in_progress', 'completed'];
 
 $sql    = "SELECT t.*, c.name AS client_name,
                   (SELECT COUNT(*) FROM bids b WHERE b.task_id = t.id) AS bid_count
            FROM tasks t
-           JOIN clients c ON t.client_id = c.id
-           WHERE 1=1";   // 1=1 so we can safely append AND clauses
+           JOIN clients c ON t.client_id = c.id";
 $params = [];
 $types  = '';
 
-// Apply status filter if valid
 if (in_array($status_filter, $allowed_statuses)) {
-    $sql    .= " AND t.status = ?";
+    $sql    .= " WHERE t.status = ?";
     $params[] = $status_filter;
     $types   .= 's';
-}
-
-// Apply keyword search across title, description, and client name
-if ($search !== '') {
-    $like     = '%' . $search . '%';
-    $sql     .= " AND (t.title LIKE ? OR t.description LIKE ? OR c.name LIKE ?)";
-    $params[] = $like;
-    $params[] = $like;
-    $params[] = $like;
-    $types   .= 'sss';
 }
 
 $sql .= " ORDER BY t.created_at DESC";
@@ -77,38 +64,15 @@ require_once '../includes/header.php';
             <div class="alert alert-success"><?= htmlspecialchars($flash) ?></div>
         <?php endif; ?>
 
-        <!-- Search bar — keyword search across title, description, client name -->
-        <form method="GET" action="" style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
-            <!-- Preserve status filter when searching -->
-            <?php if ($status_filter): ?>
-                <input type="hidden" name="status" value="<?= htmlspecialchars($status_filter) ?>">
-            <?php endif; ?>
-            <input
-                type="text"
-                name="search"
-                class="form-control"
-                placeholder="Search by title, description, or client name..."
-                value="<?= htmlspecialchars($search) ?>"
-                style="flex:1; min-width:220px;"
-            >
-            <button type="submit" class="btn btn-primary">Search</button>
-            <?php if ($search): ?>
-                <!-- Clear search, preserve current status filter -->
-                <a href="/bidboard/admin/tasks.php<?= $status_filter ? '?status=' . urlencode($status_filter) : '' ?>"
-                   class="btn btn-ghost">Clear</a>
-            <?php endif; ?>
-        </form>
-
-        <!-- Status filter tabs — preserve search when switching tabs -->
+        <!-- Status filter tabs -->
         <div style="display:flex; gap:0.4rem; margin-bottom:1.25rem; flex-wrap:wrap;">
-            <?php $sq = $search ? '&search=' . urlencode($search) : ''; ?>
-            <a href="/bidboard/admin/tasks.php<?= $search ? '?search=' . urlencode($search) : '' ?>"
+            <a href="/bidboard/admin/tasks.php"
                class="btn btn-sm <?= $status_filter === '' ? 'btn-primary' : 'btn-ghost' ?>">All</a>
-            <a href="/bidboard/admin/tasks.php?status=open<?= $sq ?>"
+            <a href="/bidboard/admin/tasks.php?status=open"
                class="btn btn-sm <?= $status_filter === 'open' ? 'btn-primary' : 'btn-ghost' ?>">Open</a>
-            <a href="/bidboard/admin/tasks.php?status=in_progress<?= $sq ?>"
+            <a href="/bidboard/admin/tasks.php?status=in_progress"
                class="btn btn-sm <?= $status_filter === 'in_progress' ? 'btn-primary' : 'btn-ghost' ?>">In Progress</a>
-            <a href="/bidboard/admin/tasks.php?status=completed<?= $sq ?>"
+            <a href="/bidboard/admin/tasks.php?status=completed"
                class="btn btn-sm <?= $status_filter === 'completed' ? 'btn-primary' : 'btn-ghost' ?>">Completed</a>
         </div>
 

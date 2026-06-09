@@ -36,11 +36,10 @@ $nav_context  = $nav_context  ?? 'public';
                 <li><a href="/bidboard/client/dashboard.php">Dashboard</a></li>
                 <li><a href="/bidboard/client/post_task.php">Post Task</a></li>
                 <li>
-                    <!-- Client name links to edit profile -->
-                    <a href="/bidboard/client/edit_profile.php"
-                       style="padding: 0.4rem 0.5rem; color:var(--muted); text-decoration:none; font-size:0.9rem;">
+                    <!-- Show logged-in client name -->
+                    <span class="text-muted text-sm" style="padding: 0.4rem 0.5rem;">
                         <?= htmlspecialchars($_SESSION['client_name'] ?? '') ?>
-                    </a>
+                    </span>
                 </li>
                 <li><a href="/bidboard/auth/logout.php?role=client">Logout</a></li>
 

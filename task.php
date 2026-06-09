@@ -49,32 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $task['status'] === 'open') {
     } elseif (!is_numeric($price) || $price <= 0) {
         $error = 'Enter a valid bid amount.';
     } else {
-        // Check if this email already submitted a bid on this task
-        $dup = $conn->prepare("SELECT id FROM bids WHERE task_id = ? AND freelancer_email = ?");
-        $dup->bind_param('is', $task_id, $email);
-        $dup->execute();
-        $dup->store_result();
-        $already_bid = $dup->num_rows > 0;   // true means duplicate
-        $dup->close();
+        // Insert the bid
+        $ins = $conn->prepare(
+            "INSERT INTO bids (task_id, freelancer_name, freelancer_email, proposed_price, pitch)
+             VALUES (?, ?, ?, ?, ?)"
+        );
+        $ins->bind_param('issds', $task_id, $name, $email, $price, $pitch);
 
-        if ($already_bid) {
-            // Block duplicate — same email can only bid once per task
-            $error = 'You have already submitted a bid on this task.';
+        if ($ins->execute()) {
+            $success = 'Your bid was submitted successfully! The client will review it.';
         } else {
-            // No duplicate found — safe to insert
-            $ins = $conn->prepare(
-                "INSERT INTO bids (task_id, freelancer_name, freelancer_email, proposed_price, pitch)
-                 VALUES (?, ?, ?, ?, ?)"
-            );
-            $ins->bind_param('issds', $task_id, $name, $email, $price, $pitch);
-
-            if ($ins->execute()) {
-                $success = 'Your bid was submitted successfully! The client will review it.';
-            } else {
-                $error = 'Something went wrong. Please try again.';
-            }
-            $ins->close();
+            $error = 'Something went wrong. Please try again.';
         }
+        $ins->close();
     }
 }
 
