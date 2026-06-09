@@ -56,6 +56,8 @@ INSERT INTO admins (username, password) VALUES (
     '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'
 );
 
+
+-- To ensure we dont have to enter the hash password , otherwise the admin123 won't be accepted here.
 UPDATE admins
 SET password = '$2y$10$X.fML4y3/FWDGN/AMj4Nte71pJ2ighg33pnWIp2mOobHV.U8tBKuy'
 WHERE username = 'admin';
