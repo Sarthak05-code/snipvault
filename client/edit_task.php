@@ -1,14 +1,33 @@
 <?php
-// Post a new task — client only
+// Client: edit an existing task (only allowed while status is 'open')
 
 require_once '../includes/auth_client.php';
 require_once '../includes/db.php';
 
 $client_id = $_SESSION['client_id'];
-$error     = '';
-$success   = '';
+$task_id   = (int)($_GET['id'] ?? 0);
 
-// Preset categories for the dropdown
+if ($task_id <= 0) {
+    header('Location: /bidboard/client/dashboard.php');
+    exit();
+}
+
+// Fetch task — verify it belongs to this client and is still open
+$stmt = $conn->prepare("SELECT * FROM tasks WHERE id = ? AND client_id = ? AND status = 'open'");
+$stmt->bind_param('ii', $task_id, $client_id);
+$stmt->execute();
+$task = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if (!$task) {
+    // Either doesn't exist, not theirs, or no longer open
+    header('Location: /bidboard/client/dashboard.php');
+    exit();
+}
+
+$error   = '';
+$success = '';
+
 $categories = [
     'Web Development',
     'Mobile Development',
@@ -37,26 +56,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!strtotime($deadline) || strtotime($deadline) <= time()) {
         $error = 'Deadline must be a future date.';
     } else {
-        // Insert the new task
-        $stmt = $conn->prepare(
-            "INSERT INTO tasks (client_id, title, description, category, budget, deadline)
-             VALUES (?, ?, ?, ?, ?, ?)"
+        // Update the task
+        $upd = $conn->prepare(
+            "UPDATE tasks SET title = ?, description = ?, category = ?, budget = ?, deadline = ?
+     WHERE id = ? AND client_id = ? AND status = 'open'"
         );
-        $stmt->bind_param('isssds', $client_id, $title, $description, $category, $budget, $deadline);
+        $budget_f = (float)$budget;
+        $upd->bind_param('sssssii', $title, $description, $category, $budget_f, $deadline, $task_id, $client_id);
 
-        if ($stmt->execute()) {
-            $new_task_id = $conn->insert_id;   // get the new task's ID
-            $stmt->close();
-            header('Location: /bidboard/task.php?id=' . $new_task_id);
-            exit();
+        if ($upd->execute()) {
+            $success = 'Task updated successfully.';
+            // Refresh local task var so form reflects saved values
+            $task['title']       = $title;
+            $task['description'] = $description;
+            $task['category']    = $category;
+            $task['budget']      = $budget;
+            $task['deadline']    = $deadline;
         } else {
-            $error = 'Failed to post task. Please try again.';
-            $stmt->close();
+            $error = 'Update failed. Please try again.';
         }
+        $upd->close();
     }
 }
 
-$page_title  = 'Post a Task';
+$page_title  = 'Edit Task';
 $nav_context = 'client';
 require_once '../includes/header.php';
 ?>
@@ -65,10 +88,13 @@ require_once '../includes/header.php';
     <div class="container" style="max-width:680px;">
 
         <div class="page-header">
-            <h1>Post a task</h1>
-            <p>Describe what you need done. Freelancers will send their bids.</p>
+            <h1>Edit task</h1>
+            <p>You can only edit tasks that are still open.</p>
         </div>
 
+        <?php if ($success): ?>
+            <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+        <?php endif; ?>
         <?php if ($error): ?>
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
@@ -84,10 +110,8 @@ require_once '../includes/header.php';
                             id="title"
                             name="title"
                             class="form-control"
-                            placeholder="e.g. Build a personal portfolio website"
-                            value="<?= htmlspecialchars($_POST['title'] ?? '') ?>"
+                            value="<?= htmlspecialchars($task['title']) ?>"
                             required>
-                        <p class="form-hint">Keep it concise — freelancers scan titles first.</p>
                     </div>
 
                     <div class="form-group">
@@ -97,11 +121,9 @@ require_once '../includes/header.php';
                             name="description"
                             class="form-control"
                             style="min-height:140px;"
-                            placeholder="Describe the task in detail — requirements, deliverables, tech stack, etc."
-                            required><?= htmlspecialchars($_POST['description'] ?? '') ?></textarea>
+                            required><?= htmlspecialchars($task['description']) ?></textarea>
                     </div>
 
-                    <!-- Two-column row for category and budget -->
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
                         <div class="form-group">
                             <label class="form-label" for="category">Category</label>
@@ -110,7 +132,7 @@ require_once '../includes/header.php';
                                 <?php foreach ($categories as $cat): ?>
                                     <option
                                         value="<?= htmlspecialchars($cat) ?>"
-                                        <?= ($_POST['category'] ?? '') === $cat ? 'selected' : '' ?>>
+                                        <?= $task['category'] === $cat ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($cat) ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -124,12 +146,10 @@ require_once '../includes/header.php';
                                 id="budget"
                                 name="budget"
                                 class="form-control"
-                                placeholder="e.g. 500"
                                 min="1"
                                 step="0.01"
-                                value="<?= htmlspecialchars($_POST['budget'] ?? '') ?>"
+                                value="<?= htmlspecialchars($task['budget']) ?>"
                                 required>
-                            <p class="form-hint">Your maximum budget.</p>
                         </div>
                     </div>
 
@@ -141,12 +161,12 @@ require_once '../includes/header.php';
                             name="deadline"
                             class="form-control"
                             min="<?= date('Y-m-d', strtotime('+1 day')) ?>"
-                            value="<?= htmlspecialchars($_POST['deadline'] ?? '') ?>"
+                            value="<?= htmlspecialchars($task['deadline']) ?>"
                             required>
                     </div>
 
                     <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
-                        <button type="submit" class="btn btn-primary">Post task</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
                         <a href="/bidboard/client/dashboard.php" class="btn btn-ghost">Cancel</a>
                     </div>
 

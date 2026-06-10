@@ -45,6 +45,7 @@ $tasks_stmt->execute();
 $tasks = $tasks_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $tasks_stmt->close();
 
+
 $page_title  = 'Dashboard';
 $nav_context = 'client';
 require_once '../includes/header.php';
@@ -116,17 +117,18 @@ require_once '../includes/header.php';
                                 <tr>
                                     <td>
                                         <a href="/bidboard/task.php?id=<?= $task['id'] ?>"
-                                           style="color:var(--accent); text-decoration:none; font-weight:600;">
+                                            style="color:var(--accent); text-decoration:none; font-weight:600;">
                                             <?= htmlspecialchars($task['title']) ?>
                                         </a>
                                     </td>
                                     <td><span class="badge badge-category"><?= htmlspecialchars($task['category']) ?></span></td>
                                     <td style="color:var(--success); font-weight:600;">$<?= number_format($task['budget'], 2) ?></td>
-                                    <td class="text-sm"><?= date('M j, Y', strtotime($task['deadline'])) ?></td>
+                                    <td class="text-sm"><?= date('M j, Y', strtotime($task['deadline'] . ' 12:00:00')) ?></td>
+
                                     <td>
                                         <!-- Link to bids page for this task -->
                                         <a href="/bidboard/client/task_bids.php?id=<?= $task['id'] ?>"
-                                           style="color:var(--accent); text-decoration:none;">
+                                            style="color:var(--accent); text-decoration:none;">
                                             <?= $task['bid_count'] ?> bid<?= $task['bid_count'] != 1 ? 's' : '' ?>
                                         </a>
                                     </td>
@@ -145,23 +147,30 @@ require_once '../includes/header.php';
                                         <div style="display:flex; gap:0.4rem;">
                                             <!-- View bids -->
                                             <a href="/bidboard/client/task_bids.php?id=<?= $task['id'] ?>"
-                                               class="btn btn-ghost btn-sm">View bids</a>
+                                                class="btn btn-ghost btn-sm">View bids</a>
 
                                             <!-- Mark completed (only when in_progress) -->
                                             <?php if ($task['status'] === 'in_progress'): ?>
                                                 <form method="POST" action="/bidboard/actions/update_task_status.php" style="display:inline;">
                                                     <input type="hidden" name="task_id" value="<?= $task['id'] ?>">
-                                                    <input type="hidden" name="status"  value="completed">
+                                                    <input type="hidden" name="status" value="completed">
                                                     <input type="hidden" name="redirect" value="dashboard">
                                                     <button type="submit" class="btn btn-success btn-sm">Mark done</button>
                                                 </form>
                                             <?php endif; ?>
+                                            <!-- Edit -->
+                                            <?php if ($task['status'] === 'open'): ?>
+                                                <a href="/bidboard/client/edit_task.php?id=<?= $task['id'] ?>" class="btn btn-ghost btn-sm">Edit</a>
+                                            <?php endif; ?>
+
+
+
 
                                             <!-- Delete (only when open) -->
                                             <?php if ($task['status'] === 'open'): ?>
                                                 <form method="POST" action="/bidboard/actions/delete_task.php"
-                                                      style="display:inline;"
-                                                      onsubmit="return confirm('Delete this task and all its bids?')">
+                                                    style="display:inline;"
+                                                    onsubmit="return confirm('Delete this task and all its bids?')">
                                                     <input type="hidden" name="task_id" value="<?= $task['id'] ?>">
                                                     <input type="hidden" name="redirect" value="dashboard">
                                                     <button type="submit" class="btn btn-danger btn-sm">Delete</button>
